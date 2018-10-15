@@ -32,6 +32,10 @@ class Hooks
                 call_user_func_array([$this, 'mappedSelect'], [$query, $args]);
             }
 
+            if ($method === 'groupBy') {
+              call_user_func_array([$this, 'mappedGroupBy'], [$query, $args]);
+            }
+
             return $next($query, $bag);
         };
     }
