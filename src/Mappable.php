@@ -318,7 +318,7 @@ trait Mappable
         }
 
         if ($relation instanceof BelongsTo && !$relation instanceof MorphTo) {
-            return [$relation->getQualifiedForeignKey(), $relation->getQualifiedOwnerKeyName()];
+            return [$relation->getQualifiedForeignKeyName(), $relation->getQualifiedOwnerKeyName()];
         }
 
         $class = get_class($relation);
