@@ -33,6 +33,14 @@ trait Mappable
      */
     protected $targetsToSave = [];
 
+	/**
+	 * Static property to track whether this trait has been booted on a particular class.
+	 * Prevents adding new static::hook() each time a class is instantiated.
+	 *
+	 * @var bool
+	 */
+	protected static $traitHasBooted = false;
+
     /**
      * Register hooks for the trait.
      *
@@ -42,6 +50,10 @@ trait Mappable
      */
     public static function bootMappable()
     {
+		if (self::$traitHasBooted) {
+			return;
+		}
+
         $hooks = new Hooks;
 
         foreach ([
@@ -54,6 +66,8 @@ trait Mappable
             ] as $method) {
             static::hook($method, $hooks->{$method}());
         }
+
+        self::$traitHasBooted = true;
     }
 
     /**
