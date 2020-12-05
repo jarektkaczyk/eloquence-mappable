@@ -21,7 +21,7 @@ class Hooks
     {
         return function ($next, $query, $bag) {
             $method = $bag->get('method');
-            $args   = $bag->get('args');
+            $args = $bag->get('args');
             $column = $args->get('column');
 
             if ($this->hasMapping($column)) {
@@ -134,8 +134,8 @@ class Hooks
 
     public function __call($method, $params)
     {
-        if (strpos($method, '__') === 0 && method_exists($this, $method.'Hook')) {
-            return call_user_func_array([$this, $method.'Hook'], $params);
+        if (strpos($method, '__') === 0 && method_exists($this, $method . 'Hook')) {
+            return call_user_func_array([$this, $method . 'Hook'], $params);
         }
 
         throw new BadMethodCallException("Method [{$method}] doesn't exist on this object.");

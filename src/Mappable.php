@@ -111,7 +111,7 @@ trait Mappable
                     $columns[$key] .= " as {$as}";
                 }
 
-            // For non mapped columns present on this table we will simply
+                // For non mapped columns present on this table we will simply
             // add the prefix, in order to avoid any column collisions,
             // that are likely to happen when we are joining tables.
             } elseif ($this->hasColumn($column)) {
@@ -182,14 +182,14 @@ trait Mappable
         return $query;
     }
 
-  /**
-   * @param  \Sofa\Eloquence\Builder $query
-   * @param  \Sofa\Hookable\Contracts\ArgumentBag $args
-   * @param  string $table
-   * @param  string $column
-   *
-   * @return array
-   */
+    /**
+     * @param  \Sofa\Eloquence\Builder $query
+     * @param  \Sofa\Hookable\Contracts\ArgumentBag $args
+     * @param  string $table
+     * @param  string $column
+     *
+     * @return array
+     */
     protected function listsMapped(Builder $query, ArgumentBag $args, $table, $column)
     {
         return $this->pluckMapped($query, $args, $table, $column);
@@ -264,8 +264,8 @@ trait Mappable
     protected function joinSegment(Builder $query, $segment, EloquentModel $parent)
     {
         $relation = $parent->{$segment}();
-        $related  = $relation->getRelated();
-        $table    = $related->getTable();
+        $related = $relation->getRelated();
+        $table = $related->getTable();
 
         // If the table has been already joined let's skip it. Otherwise we will left join
         // it in order to allow using some query methods on mapped columns. Polymorphic
@@ -294,7 +294,7 @@ trait Mappable
      *
      * @param  \Sofa\Eloquence\Builder $query
      * @param  string  $table
-     * @return boolean
+     * @return bool
      */
     protected function alreadyJoined(Builder $query, $table)
     {
@@ -430,7 +430,7 @@ trait Mappable
      * Determine whether the mapping points to relation.
      *
      * @param  string $mapping
-     * @return boolean
+     * @return bool
      */
     protected function relationMapping($mapping)
     {
@@ -441,7 +441,7 @@ trait Mappable
      * Determine whether a mapping exists for an attribute.
      *
      * @param  string $key
-     * @return boolean
+     * @return bool
      */
     public function hasMapping($key)
     {

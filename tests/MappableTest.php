@@ -2,15 +2,21 @@
 
 namespace Sofa\Eloquence\Tests;
 
-use Mockery as m;
-use Sofa\Eloquence\Mappable;
-use Sofa\Eloquence\Eloquence;
+use Illuminate\Database\Connection;
+use Illuminate\Database\ConnectionResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use LogicException;
+use Mockery;
+use PHPUnit\Framework\TestCase;
+use Sofa\Eloquence\Eloquence;
+use Sofa\Eloquence\Mappable;
 
-class MappableTest extends \PHPUnit_Framework_TestCase {
+class MappableTest extends TestCase
+{
+    private $model;
 
-    public function setUp()
+    protected function setUp(): void
     {
         Relation::morphMap([
             'UserMorph' => MappableEloquentStub::class,
@@ -18,17 +24,17 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->model = new MappableStub;
     }
 
-    public function tearDown()
+    protected function tearDown(): void
     {
-        m::close();
+        $this->addToAssertionCount(Mockery::getContainer()->mockery_getExpectationCount());
+        Mockery::close();
+        parent::tearDown();
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_select()
     {
-        $sql = 'select "profiles"."last_name", "users"."id", "users"."ign" from "users" '.
+        $sql = 'select "profiles"."last_name", "users"."id", "users"."ign" from "users" ' .
                 'left join "profiles" on "users"."profile_id" = "profiles"."id"';
 
         $query = $this->getModel()->select('last_name', 'id', 'nick');
@@ -38,17 +44,16 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
 
     /**
      * @test
-     *
      * @dataProvider aggregateFunctions
      */
     public function mapped_aggregates($function)
     {
-        $sql = 'select '.$function.'("images"."path") as aggregate from "users" '.
-                'left join "profiles" on "users"."profile_id" = "profiles"."id" '.
+        $sql = 'select ' . $function . '("images"."path") as aggregate from "users" ' .
+                'left join "profiles" on "users"."profile_id" = "profiles"."id" ' .
                 'left join "images" on "images"."profile_id" = "profiles"."id"';
 
         $model = $this->getModel();
-        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], m::any())->andReturn([]);
+        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], Mockery::any())->andReturn([]);
 
         $model->{$function}('avatar');
     }
@@ -56,93 +61,80 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
     public function aggregateFunctions()
     {
         return [
-            ['max'], ['min'], ['avg'], ['count'], ['sum']
+            ['max'], ['min'], ['avg'], ['count'], ['sum'],
         ];
     }
 
-    /**
-     * @test
-     *
-     * @expectedException \LogicException
-     */
+    /** @test */
     public function mapped_join_rejects_morphTo_relation_for_joins()
     {
+        $this->expectException(LogicException::class);
         // It's a MorphTo relation that is supported for mapping,
         // but due to the way it works it cannot be used for
         // query hooks, because it's impossible to join.
         $this->getModel()->value('role');
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_join_polymorphic_relation()
     {
-        $sql = 'select "companies"."name" from "users" '.
-                'left join "companies" on "companies"."brandable_id" = "users"."id" '.
-                'and "companies"."brandable_type" = ? '.
+        $sql = 'select "companies"."name" from "users" ' .
+                'left join "companies" on "companies"."brandable_id" = "users"."id" ' .
+                'and "companies"."brandable_type" = ? ' .
                 'limit 1';
 
         $bindings = ['UserMorph'];
 
         $model = $this->getModel();
-        $model->getConnection()->shouldReceive('select')->once()->with($sql, $bindings, m::any())->andReturn([]);
+        $model->getConnection()->shouldReceive('select')->once()->with($sql, $bindings, Mockery::any())->andReturn([]);
 
         $model->value('brand');
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_pluck()
     {
-        $sql = 'select "images"."path" from "users" '.
-                'left join "profiles" on "users"."profile_id" = "profiles"."id" '.
-                'left join "images" on "images"."profile_id" = "profiles"."id" '.
+        $sql = 'select "images"."path" from "users" ' .
+                'left join "profiles" on "users"."profile_id" = "profiles"."id" ' .
+                'left join "images" on "images"."profile_id" = "profiles"."id" ' .
                 'limit 1';
 
         $model = $this->getModel();
-        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], m::any())->andReturn([]);
+        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], Mockery::any())->andReturn([]);
 
         $model->value('avatar');
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_pluck_leaves_prefixed_keys_intact()
     {
-        $sql = 'select "profiles"."last_name", "other_table"."id" from "users" '.
+        $sql = 'select "profiles"."last_name", "other_table"."id" from "users" ' .
                 'left join "profiles" on "users"."profile_id" = "profiles"."id"';
 
         $model = $this->getModel();
-        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], m::any())->andReturn([]);
+        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], Mockery::any())->andReturn([]);
 
         $model->pluck('last_name', 'other_table.id');
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_pluck_prefixes_main_table_column()
     {
-        $sql = 'select "profiles"."last_name", "users"."id" from "users" '.
+        $sql = 'select "profiles"."last_name", "users"."id" from "users" ' .
                 'left join "profiles" on "users"."profile_id" = "profiles"."id"';
 
         $model = $this->getModel();
-        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], m::any())->andReturn([]);
+        $model->getConnection()->shouldReceive('select')->once()->with($sql, [], Mockery::any())->andReturn([]);
 
         $model->pluck('last_name', 'id');
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_orderBy_nested()
     {
-        $sql = 'select "users".* from "users" '.
-                'left join "profiles" on "users"."profile_id" = "profiles"."id" '.
-                'left join "images" on "images"."profile_id" = "profiles"."id" '.
+        $sql = 'select "users".* from "users" ' .
+                'left join "profiles" on "users"."profile_id" = "profiles"."id" ' .
+                'left join "images" on "images"."profile_id" = "profiles"."id" ' .
                 'order by "images"."path" asc, "profiles"."first_name" desc';
 
         $query = $this->getModel()->oldest('avatar')->latest('first_name', 'desc');
@@ -150,13 +142,11 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($sql, $query->toSql());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_orderBy_has_one()
     {
-        $sql = 'select "users".* from "users" '.
-                'left join "accounts" on "accounts"."user_id" = "users"."id" '.
+        $sql = 'select "users".* from "users" ' .
+                'left join "accounts" on "accounts"."user_id" = "users"."id" ' .
                 'order by "accounts"."photo" asc, "accounts"."address" desc';
 
         $query = $this->getModel()->oldest('photo')->latest('address', 'desc');
@@ -164,13 +154,11 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($sql, $query->toSql());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_orderBy_belongs_to()
     {
-        $sql = 'select "users".* from "users" '.
-                'left join "profiles" on "users"."profile_id" = "profiles"."id" '.
+        $sql = 'select "users".* from "users" ' .
+                'left join "profiles" on "users"."profile_id" = "profiles"."id" ' .
                 'order by "ign" asc, "profiles"."first_name" desc';
 
         $query = $this->getModel()->oldest('nick')->latest('first_name', 'desc');
@@ -178,9 +166,7 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($sql, $query->toSql());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function alias_where()
     {
         $sql = 'select * from "users" where "email" = ? and "ign" = ?';
@@ -191,12 +177,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email', 'FooBar'], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_whereBetween()
     {
-        $sql = 'select * from "users" where "email" = ? and exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? and exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "age" between ? and ?)';
 
         $query = $this->getModel()->where('email', 'some@email')->whereBetween('age', [20, 30]);
@@ -205,12 +189,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email', 20, 30], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_whereNotBetween()
     {
-        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "age" between ? and ?)';
 
         $query = $this->getModel()->where('email', 'some@email')->whereNotBetween('age', [20, 30]);
@@ -219,12 +201,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email', 20, 30], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_whereNotIn()
     {
-        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "first_name" in (?, ?))';
 
         $query = $this->getModel()->where('email', 'some@email')->whereNotIn('first_name', ['Jarek', 'Marek']);
@@ -233,12 +213,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email', 'Jarek', 'Marek'], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_whereNotNull()
     {
-        $sql = 'select * from "users" where "email" = ? and exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? and exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "first_name" is not null)';
 
         $query = $this->getModel()->where('email', 'some@email')->whereNotNull('first_name');
@@ -247,12 +225,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email'], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_whereNull()
     {
-        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? and not exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "first_name" is not null)';
 
         $query = $this->getModel()->where('email', 'some@email')->whereNull('first_name');
@@ -261,12 +237,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email'], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_orWhere()
     {
-        $sql = 'select * from "users" where "email" = ? or exists (select * from "profiles" '.
+        $sql = 'select * from "users" where "email" = ? or exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "first_name" = ?)';
 
         $query = $this->getModel()->where('email', 'some@email')->orWhere('first_name', 'Jarek');
@@ -275,12 +249,10 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(['some@email', 'Jarek'], $query->getBindings());
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function mapped_where()
     {
-        $sql = 'select * from "users" where exists (select * from "profiles" '.
+        $sql = 'select * from "users" where exists (select * from "profiles" ' .
                 'where "users"."profile_id" = "profiles"."id" and "first_name" = ?)';
 
         $query = $this->getModel()->where('first_name', 'Jarek');
@@ -297,7 +269,7 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
     {
         $model = new MappableStub;
 
-        $model->bar = m::mock('StdClass');
+        $model->bar = Mockery::mock('StdClass');
         $model->bar->shouldReceive('save')->once()->andReturn(true);
 
         $model->setMappedAttribute('foo', 'new_value');
@@ -387,9 +359,7 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals('new_bam_value', $this->model->mapAttribute('bam'));
     }
 
-    /**
-     * @test
-     */
+    /** @test */
     public function it_inherits_base_model_properly()
     {
         $q = $this->getModel(new UserStub)->select(['id', 'name'])->where('id', '>', 0);
@@ -408,19 +378,23 @@ class MappableTest extends \PHPUnit_Framework_TestCase {
         $processorClass = 'Illuminate\Database\Query\Processors\SQLiteProcessor';
         $grammar = new $grammarClass;
         $processor = new $processorClass;
-        $schema = m::mock('StdClass');
+        $schema = Mockery::mock('StdClass');
         $schema->shouldReceive('getColumnListing')->andReturn(['id', 'email', 'ign']);
-        $connection = m::mock('Illuminate\Database\ConnectionInterface', ['getQueryGrammar' => $grammar, 'getPostProcessor' => $processor]);
+        $connection = Mockery::mock(Connection::class)->makePartial();
+        $connection->shouldReceive('getQueryGrammar')->andReturn($grammar);
+        $connection->shouldReceive('getPostProcessor')->andReturn($processor);
         $connection->shouldReceive('getSchemaBuilder')->andReturn($schema);
-        $resolver = m::mock('Illuminate\Database\ConnectionResolverInterface', ['connection' => $connection]);
+        $resolver = Mockery::mock(ConnectionResolver::class)->makePartial();
+        $resolver->shouldReceive('connection')->andReturn($connection);
         $class = get_class($model);
         $class::setConnectionResolver($resolver);
+
         return $model;
     }
 }
 
-class MappableStub {
-
+class MappableStub
+{
     use Eloquence, Mappable {
         setMappedAttribute as protectedSetMappedAttribute;
         mapAttribute       as protectedMapAttribute;
@@ -431,32 +405,32 @@ class MappableStub {
 
     protected $maps = [
         // local alias
-        'alias'       => 'original',        // $this->original
+        'alias' => 'original',        // $this->original
 
         // explicit relation mappings
-        'foo'         => 'bar.baz',         // $this->bar->baz
-        'bam'         => 'bar.bad.bam',     // $this->bar->bad->bam
+        'foo' => 'bar.baz',         // $this->bar->baz
+        'bam' => 'bar.bad.bam',     // $this->bar->bad->bam
 
         // implicit relation mappings
-        'related'     => ['name', 'email'], // $this->related->name
+        'related' => ['name', 'email'], // $this->related->name
         'related.far' => ['far_field'],     // $this->related->far->far_field
     ];
 
     public function __construct()
     {
-        $this->bar     = $this->getRelatedStub([
+        $this->bar = $this->getRelatedStub([
             'baz' => 'baz_value',
             'bad' => $this->getRelatedStub([
-                'bam' => 'bam_value'
-            ])
+                'bam' => 'bam_value',
+            ]),
         ]);
 
         $this->related = $this->getRelatedStub([
-            'name'  => 'name_value',
+            'name' => 'name_value',
             'email' => 'email_value',
-            'far'   => $this->getRelatedStub([
-                'far_field' => 'far_value'
-            ])
+            'far' => $this->getRelatedStub([
+                'far_field' => 'far_value',
+            ]),
         ]);
     }
 
@@ -491,19 +465,20 @@ class MappableStub {
     }
 }
 
-class MappableEloquentStub extends Model {
+class MappableEloquentStub extends Model
+{
     use Eloquence, Mappable;
 
     protected $table = 'users';
     protected $maps = [
         'first_name' => 'profile.first_name',
-        'profile'    => ['last_name', 'age'],
-        'nick'       => 'ign',
-        'photo'      => 'account.photo',
-        'address'    => 'account.address',
-        'avatar'     => 'profile.image.path',
-        'brand'      => 'company.name',
-        'role'       => 'userable.name',
+        'profile' => ['last_name', 'age'],
+        'nick' => 'ign',
+        'photo' => 'account.photo',
+        'address' => 'account.address',
+        'avatar' => 'profile.image.path',
+        'brand' => 'company.name',
+        'role' => 'userable.name',
     ];
 
     public function profile()
@@ -527,7 +502,8 @@ class MappableEloquentStub extends Model {
     }
 }
 
-class MappableRelatedStub extends Model {
+class MappableRelatedStub extends Model
+{
     protected $table = 'profiles';
 
     public function image()
@@ -536,32 +512,36 @@ class MappableRelatedStub extends Model {
     }
 }
 
-class MappableRelatedHasOneStub extends Model {
+class MappableRelatedHasOneStub extends Model
+{
     protected $table = 'accounts';
 }
 
-class MappableFarRelatedStub extends Model {
+class MappableFarRelatedStub extends Model
+{
     protected $table = 'images';
 }
 
-class MappablePolymorphicStub extends Model {
+class MappablePolymorphicStub extends Model
+{
     protected $table = 'companies';
 }
 
-
-
-class BaseModelStub extends Model {
+class BaseModelStub extends Model
+{
     use Eloquence, Mappable;
 }
 
-class UserStub extends BaseModelStub {
+class UserStub extends BaseModelStub
+{
     protected $maps = [
         'id' => 'usr_id',
         'name' => 'usr_name',
     ];
 }
 
-class BookStub extends BaseModelStub {
+class BookStub extends BaseModelStub
+{
     protected $maps = [
         'id' => 'bk_id',
         'name' => 'bk_name',
