@@ -78,6 +78,29 @@ trait Mappable
     }
 
     /**
+     * Custom group by to group by mapped attributes
+     *
+     * @param \Sofa\Eloquence\Builder $query
+     * @param \Sofa\Hookable\Contracts\ArgumentBag $args
+     * @return void
+     */
+    protected function mappedGroupBy(Builder $query, ArgumentBag $args)
+    {
+        $groupArgs = $args->get('groups');
+        $groups = \is_array($groupArgs[0]) ? $groupArgs[0] : $groupArgs;
+
+        foreach ($groups as $key => $group) {
+            if ($this->hasMapping($group)) {
+                $mapping = $this->getMappingForAttribute($group);
+
+                $groups[$key] = $mapping;
+            }
+        }
+
+        $args->set('groups', $groups);
+    }
+
+    /**
      * Adjust mapped columns for select statement.
      *
      * @param  \Sofa\Eloquence\Builder $query
